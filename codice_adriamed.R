@@ -8,6 +8,7 @@ library(tidyverse)
 library(data.table)
 library(parallel)
 library(MASS)
+library(readxl)
 ####----------------- Set working directory
 #mydir<-"~/1_MEDUNITS"
 mydir<-"~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Input_data"
@@ -25,7 +26,7 @@ grid_whole <- read_sf(dsn = "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/SHAPEFILES/ME
 
 # segments
 segments_otb<- read_sf(dsn = "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Input_data/segm_input2018") %>%dplyr::mutate(segm_id= seq(1:nrow(.)))
-
+country_codes<- read_excel("~/CNR/AIS/Lavori/Lavori 2019/GSA_EXCHANGE/GSA-exchange/COUNTRY_CODES.xlsx")
 #####---------------- Data adjustments
 # Crop the grid: divide the grid in portions
 chunk <- function(x,no_cores) split(x, factor(sort(rank(x)%%no_cores)))
@@ -98,12 +99,14 @@ system.time({
   })
 })
 stopCluster(cl)
-#save(df, file=paste0(grid_nm,gear, "raw_intersection.RData"))
+save(df, file="raw_intersection.RData")
 
 #####---------------- Statistics
 # summarize information
 int2<-rbindlist(df) # unlist
 
+
+#################################### OUTPUT 1: MAPS
 ############# Map fishing
 data_fish<-int2%>%dplyr::filter(trattov== 4)
 
@@ -136,5 +139,19 @@ grid_fishing<-left_join(grid_fishing, UNK_Days_period[[1]], by="FID") %>%left_jo
 
 
 # save 
-st_write(grid_fishing, "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Input_data/grid_filled/grid_filled.shp" ) #shapefile
+setwd("~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Results")
+st_write(grid_fishing, "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Results/grid_filled/grid_filled.shp" ) #shapefile
+
+############################ OUTPUT 2: lista barche e FDays x country x area x periodo
+OUTPUT2<-lapply(temporal_seq, function(i){
+  i<-as.data.frame(data_fish%>%dplyr::filter(mnth_bs %in% i)%>%dplyr::distinct(fra, MMSI, session, day,arrival,.keep_all=T)%>%dplyr::group_by(fra, MMSI,arrival)%>%count(name="FDays"))
+  i<-i%>%spread(key=fra, value=FDays) %>% dplyr::mutate(CODE= as.numeric(substr(MMSI, 1,3)))%>% dplyr::left_join(country_codes, by="CODE")%>%dplyr::select(-CODE)%>%dplyr::rename("FLAG"="COUNTRY", "HARBOUR"="arrival")%>%dplyr::select(MMSI, FLAG, HARBOUR, A,B,C,D)%>% replace(., is.na(.), 0)
+  return(i)
+})
+
+##
+
+mapply(write.csv, OUTPUT2, file=paste0("Table_Fdays_by_area_",names(OUTPUT2),"_2018", '.csv'), row.names=FALSE, sep=",")
+
+
 
