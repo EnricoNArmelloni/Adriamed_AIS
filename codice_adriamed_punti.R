@@ -1,6 +1,6 @@
 ##########
 ##
-## Code to format initial dataset
+## Code to calculate days at sea from points
 ##
 ## Enrico Nicola Armelloni - enrico.armelloni@irbim.cnr.it
 ##
