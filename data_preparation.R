@@ -1,10 +1,21 @@
+##########
+##
+## Code to format initial dataset
+##
+## Enrico Nicola Armelloni - enrico.armelloni@irbim.cnr.it
+##
+## May 2020
+##
+##########
+
+
 library(sf)
 library(sp)
 library(tidyverse)
 library(data.table)
 "%ni%"<-Negate("%in%")
 setwd("~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Input_data")
-yr<-"2017"
+yr<-"2018"
 
 #### Import grids
 grid_whole <- read_sf(dsn = "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/SHAPEFILES/MEDUNITS_OTB17_fra")%>%dplyr::mutate(fra=ifelse(is.na(fra)==TRUE, "D", fra))%>%dplyr::mutate(FID =seq(1:nrow(.)))%>%dplyr::select(FID, FID_1, fra)
@@ -21,11 +32,13 @@ if(yr=="2018"){
   barchemese<-gather(barchemese, value=gear, key=month, -MMSI)%>%arrange(MMSI, month)%>%dplyr::filter(gear=="OTB")%>%dplyr::mutate(month=str_remove(month, "M"))%>%dplyr::mutate(month=as.integer(month))
   
 }else if(yr=="2017"){
+  barchemese <- read_delim("Gear_by_month2017.csv",  ";", escape_double = FALSE, trim_ws = TRUE)
   load("~/CNR/AIS/Datasets/SESSIONI/session_2017.RData")
   dataset <- read_csv("~/CNR/AIS/Lavori/Lavori 2020/MED_UNITS/Controlli gennaio/Altre barche/new_sessions.csv")
   sessions<-df2017%>%bind_rows(., dataset)
-  segments<-read_csv("~/CNR/AIS/Lavori/Lavori 2020/MED_UNITS/Data/Summary/segments_MEDUNITS_trawlers.csv") ## 2017
-  
+  segments<-read_csv("segments_17.csv") ## 2017
+  barchemese<-gather(barchemese, value=gear, key=month, -MMSI)%>%arrange(MMSI, month)%>%dplyr::filter(gear=="OTB")%>%dplyr::mutate(month=str_remove(month, "M"))%>%dplyr::mutate(month=as.integer(month))
+  #segments<-read_csv("~/CNR/AIS/Lavori/Lavori 2020/MED_UNITS/Data/Summary/segments_MEDUNITS_trawlers.csv") ## 2017
 }
   
 #####
@@ -39,14 +52,7 @@ seg<-segments%>%dplyr::mutate(finish_time=as.POSIXct(f_time*60, origin="1970-01-
 
 # Merge and calculate number of day at sea by segment
 
-if(yr=="2018"){
 segments_otb<-left_join(barchemese, sess,  by=c("MMSI", "month")) %>% inner_join( .,seg, by=c("MMSI", "session")) %>%dplyr::mutate(day = as.numeric(round((finish_time-starttime)/86400)))
-
-}else if(yr=="2017"){
-  
-  segments_otb<-sess%>% inner_join( .,seg, by=c("MMSI", "session")) %>%dplyr::mutate(day = as.numeric(round((finish_time-starttime)/86400)))
-  
-}
 
 # Transform in sf object 
 segments_otb<-segments_otb %>%dplyr::mutate(geo=st_as_sfc(structure(geom, class = "WKB"), EWKB = TRUE))%>% st_as_sf(.)%>% st_set_crs(st_crs(grid_whole))%>%dplyr::mutate(segm_id= seq(1:nrow(.)))
@@ -55,7 +61,7 @@ segments_otb<-segments_otb %>%dplyr::mutate(geo=st_as_sfc(structure(geom, class 
 area<-as.data.frame(st_intersects(AREA, segments_otb))%>%dplyr::rename("FID"="row.id", "segm_id"="col.id")
 segments_otb<-segments_otb %>% dplyr::filter(segm_id %in% area$segm_id)%>%dplyr::mutate(segm_id= seq(1:nrow(.)))
 
-segments_otb<-segments_otb %>%dplyr::mutate(dist_m=as.numeric(st_length(geo))) %>% dplyr::mutate(speed_kn =((dist_m/(duration*60))*3.6)/1.852) %>%dplyr::mutate(month_obs=month(finish_time)) %>%dplyr::select(MMSI, session, segment, geo,speed_kn, day, trattov,arrival,gsa_arrival, country_arrival, month_obs)%>%dplyr::mutate(segm_id= seq(1:nrow(.))) ## Formatting data
+segments_otb<-segments_otb %>%dplyr::mutate(dist_m=as.numeric(st_length(geo))) %>% dplyr::mutate(speed_kn =((dist_m/(duration*60))*3.6)/1.852) %>%dplyr::mutate(month_obs=month(finish_time)) %>%dplyr::select(MMSI, session, segment, geo,speed_kn, day, trattov,arrival,gsa_arrival, country_arrival, month_obs, duration,distance)%>%dplyr::mutate(segm_id= seq(1:nrow(.))) ## Formatting data
 
 ####
 ### Save shp
