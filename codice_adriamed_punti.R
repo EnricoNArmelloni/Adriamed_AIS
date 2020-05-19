@@ -10,6 +10,7 @@
 
 
 library(sf)
+library(readxl)
 library(sp)
 library(tidyverse)
 library(data.table)
@@ -26,7 +27,7 @@ t2<-c(9,10)
 t3<-c(11,12)
 temporal_seq<-list(t1=t1,t2=t2,t3=t3)
 ## Data format
-dataset<- points_area%>%dplyr::mutate(datetime =as.POSIXct(paste(DATE.UTC., TIME.UTC.), format='%Y-%m-%d %H:%M:%S', tz="UTC"))%>% dplyr::mutate(month=lubridate::month(datetime))%>%dplyr::rename("DAY"= "DATE.UTC.")%>%dplyr::select(MMSI, DAY, month, year, LATITUDE, LONGITUDE) %>% st_as_sf(., coords=c("LONGITUDE", "LATITUDE"))%>% st_set_crs(st_crs(grid_whole))%>% dplyr::mutate(point_id=seq(1:nrow(.)))
+dataset<- points_area%>% dplyr::mutate(CODE= as.numeric(substr(MMSI, 1,3))) %>% dplyr::left_join(country_codes, by="CODE")%>%dplyr::mutate(datetime =as.POSIXct(paste(DATE.UTC., TIME.UTC.), format='%Y-%m-%d %H:%M:%S', tz="UTC"))%>% dplyr::mutate(month=lubridate::month(datetime))%>%dplyr::rename("DAY"= "DATE.UTC.") %>%dplyr::filter(COUNTRY== "Italy",aut=="NO", SPEED >= 7 ) %>%dplyr::select(MMSI, DAY, month, year, LATITUDE, LONGITUDE) %>% st_as_sf(., coords=c("LONGITUDE", "LATITUDE"))%>% st_set_crs(st_crs(grid_whole))%>% dplyr::mutate(point_id=seq(1:nrow(.)))
 
 
 ### Intersection
@@ -69,6 +70,6 @@ grid_das<-left_join(grid_whole, Days_at_sea_period17[[1]], by="FID") %>%left_joi
 ####
 ### Save shp
 setwd("~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Results")
-dir.create(file.path("./","daysatsea" ))
-st_write(grid_das,  paste0("./","daysatsea/", "daysatsea.shp")) #shapefile
+dir.create(file.path("./","daysatsea7" ))
+st_write(grid_das,  paste0("./","daysatsea7/", "daysatsea7.shp")) #shapefile
 
