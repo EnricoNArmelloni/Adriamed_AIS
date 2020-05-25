@@ -26,11 +26,14 @@ t3<-c(11,12)
 temporal_seq<-list(t1=t1,t2=t2,t3=t3)
 
 #####---------------- Data Import
-grid_whole <- read_sf(dsn = "~/./SHAPEFILES/fra")%>%dplyr::mutate(fra=ifelse(is.na(fra)==TRUE, "D", fra))%>%dplyr::mutate(FID =seq(1:nrow(.)))%>%dplyr::select(FID, FID_1, fra)
+grid_whole <- read_sf(dsn = "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/SHAPEFILES/MEDUNITS_OTB17_fra")%>%dplyr::mutate(fra=ifelse(is.na(fra)==TRUE, "D", fra))%>%dplyr::mutate(FID =seq(1:nrow(.)))%>%dplyr::select(FID, FID_1, fra)
 
 # segments
-segments_otb<- read_sf(dsn = "segm_input2017") %>%dplyr::mutate(segm_id= seq(1:nrow(.)))
-country_codes<- read_excel("COUNTRY_CODES.xlsx")
+segments_otb<- read_sf(dsn = "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Input_data/segm_input2018")%>%dplyr::mutate(rtn=ifelse(trattov==4 & sped_kn < 7, "Y", ifelse(trattov==1 & duratin <120 &sped_kn <7, "Y", "N")))%>%dplyr::filter(rtn == "Y")%>%dplyr::select(-rtn) %>%dplyr::mutate(segm_id= seq(1:nrow(.)))
+
+#segments_otb<- read_sf(dsn = "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Input_data/segm_inputlast2017") %>%dplyr::mutate(segm_id= seq(1:nrow(.)))
+
+country_codes<- read_excel("~/CNR/AIS/Lavori/Lavori 2019/GSA_EXCHANGE/GSA-exchange/COUNTRY_CODES.xlsx")
 #####---------------- Data adjustments
 # Crop the grid: divide the grid in portions
 chunk <- function(x,no_cores) split(x, factor(sort(rank(x)%%no_cores)))
@@ -103,7 +106,7 @@ system.time({
   })
 })
 stopCluster(cl)
-save(df, file="raw_intersection2017.RData")
+save(df, file="raw_intersection2018.RData")
 
 #####---------------- Statistics
 # summarize information
@@ -144,7 +147,7 @@ grid_fishing<-left_join(grid_fishing, UNK_Days_period[[1]], by="FID") %>%left_jo
 
 # save 
 setwd("~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Results")
-st_write(grid_fishing, "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Results/grid_filled/grid_filled2017.shp" ) #shapefile
+st_write(grid_fishing, "~/CNR/AIS/Lavori/Lavori 2020/Adriamed/Results/grid_filled/grid_filled2018.shp" ) #shapefile
 
 ############################ OUTPUT 2:  FDays x vessel x country x area x period
 
@@ -156,7 +159,7 @@ OUTPUT2<-lapply(temporal_seq, function(i){
 
 ##
 
-mapply(write.csv, OUTPUT2, file=paste0("Table_Fdays_by_area_",names(OUTPUT2),"_2017", '.csv'), row.names=FALSE, sep=",")
+mapply(write.csv, OUTPUT2, file=paste0("Table_Fdays_by_area_",names(OUTPUT2),"_2018", '.csv'), row.names=FALSE, sep=",")
 
 
 
